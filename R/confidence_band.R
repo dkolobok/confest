@@ -65,3 +65,20 @@ CB_point <- function(x, fname, cm) {
 
   return(list(plvalues = plvalues, heqvalues = heqvec, xseq = seq))
 }
+
+
+band_point <- function(prof_res, conf) {
+  prof <- approxfun(x = prof_res$xseq[!is.na(prof_res$plvalues)], y = prof_res$plvalues[!is.na(prof_res$plvalues)])
+  crit <- min(prof_res$plvalues, na.rm = TRUE) + qchisq(conf, df = 1)
+
+  l <- try(uniroot(function(x) prof(x) - crit, lower = min(prof_res$xseq[!is.na(prof_res$plvalues)]),
+                   upper = prof_res$xseq[which(prof_res$plvalues == min(prof_res$plvalues, na.rm = TRUE))], tol = 1e-64)$root)
+  r <- try(uniroot(function(x) prof(x) - crit, upper = max(prof_res$xseq[!is.na(prof_res$plvalues)]),
+                   lower = prof_res$xseq[which(prof_res$plvalues == min(prof_res$plvalues, na.rm = TRUE))], tol = 1e-64)$root)
+  c(l = l, r = r)
+}
+
+band_constructor <- function(band_profile_list, conf) {
+  df1 <- sapply(band_profile_list, band_point, conf) #for each x
+  data.frame(x = colnames(df1), l = df1[1,], r = df1[2,])
+}

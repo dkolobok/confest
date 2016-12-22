@@ -119,21 +119,23 @@ get_char <- function(dat) {
 #takes fitted parameter name and sequence
 #returns profile (as a function)
 
-profilefun <- function(parname, seq) {
+profilefun <- function(parname, seq, cm, lower = NULL, upper = NULL) {
   par <- cm$fit$par
   parind <- which(names(par) == parname)
   profileseq <- sapply(seq, function(x) {
     par[parind] <- x
-    try(optim.fix(par, m2lL, parind, control = list(abstol = 1e-16))$value)
+    fn1 <- function(x) m2lL(x, cm = cm)
+    try(optim.fix(par, fn1, parind, cm = cm, lower = lower, upper = upper)$value)
   })
   approxfun(x = seq, y = profileseq)
 }
 
-PL <- function(x, parname) {
+PL <- function(x, parname, cm, lower = NULL, upper = NULL) {
   par <- cm$fit$par
   parind <- which(names(par) == parname)
   par[parind] <- x
-  try(optim.fix(par, m2lL, parind, control = list(abstol = 1e-16))$value)
+  fn1 <- function(x) m2lL(x, cm = cm)
+  try(optim.fix(par, fn1, parind, cm = cm, lower = lower, upper = upper))
 }
 
 PLexpl <- function(x, q, fname) {

@@ -19,8 +19,8 @@ fit <- function(par = NULL, left = NULL, right = NULL, cm,
                 method = 'L-BFGS-B',
                 control = list(maxit = 1e4, factr = 10, trace = 0)) {
   if (is.null(par)) par <- cm$fit_start
-  if (is.null(left)) par <- cm$fit_left
-  if (is.null(right)) par <- cm$fit_right
+  if (is.null(left)) left <- cm$fit_start * 0.5
+  if (is.null(right)) right <- cm$fit_start * 2
   fn1 <- function(th) m2lL(th, cm = cm)
 
   optim(par = par, fn = fn1,
