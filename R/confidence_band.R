@@ -1,16 +1,22 @@
 ###########################
 ### PL confidence bands ###
 ###########################
-CB <- function(xseq, fname, cm) {
-  lapply(xseq, CB_point, fname, cm)
+CB <- function(xseq, fname, cm, qrelseq = c(0.5, 0.8, 0.9, 0.95, 1, 1.05, 1.1, 1.2, 1.5)) {
+  lapply(xseq, CB_point, fname, cm, qrelseq)
 }
 
-CB_point <- function(x, fname, cm) {
-  if (fname %in% names(cm$implfunlist))
-    q1 <- implicit_fun(x = x, par = cm$fit$par, fname = fname, cm = cm) else
-      q1 <- cm$explfunlist[[fname]](x, cm$fit$par)
+CB_point <- function(x, fname, cm, qrelseq = c(0.5, 0.8, 0.9, 0.95, 1, 1.05, 1.1, 1.2, 1.5)) {
+  if (fname %in% names(cm$implfunlist)) {
+    q1 <- implicit_fun(x = x, par = cm$fit$par, fname = fname, cm = cm)
+    fn <- function(theta) implicit_fun(x, theta, fname, cm = cm)
+  }
+  else {
+    q1 <- cm$explfunlist[[fname]](x, cm$fit$par)
+    fn <- function(theta) cm$explfunlist[[fname]](x, theta)
+  }
 
-  seq <- seq(q1 * 0.95, q1 * 1.05, length.out = 9)
+
+  seq <- q1 * qrelseq
   crit <- c(cm$fit$value + qchisq(0.99, df = 1))
 
   fn1 <- function(th) m2lL(th, cm)
@@ -29,7 +35,7 @@ CB_point <- function(x, fname, cm) {
   #  browser()
   for (i in (midind + 1):length(seq)) {
     #    browser()
-    heq <- function(theta) implicit_fun(x, theta, fname, cm = cm) - seq[i]
+    heq <- function(theta) fn(theta) - seq[i]
     system.time(res <- solnp(pars = res$pars,
                              fun = fn1,
                              eqfun = heq,
@@ -49,7 +55,7 @@ CB_point <- function(x, fname, cm) {
   ## start from previouly found values
   for (i in 1:(midind - 1)) {
     #    browser()
-    heq <- function(theta) implicit_fun(x, theta, fname, cm = cm) - seq[midind - i]
+    heq <- function(theta) fn(theta) - seq[midind - i]
     system.time(res <- solnp(pars = res$pars,
                              fun = fn1,
                              eqfun = heq,
@@ -75,10 +81,12 @@ band_point <- function(prof_res, conf) {
                    upper = prof_res$xseq[which(prof_res$plvalues == min(prof_res$plvalues, na.rm = TRUE))], tol = 1e-64)$root)
   r <- try(uniroot(function(x) prof(x) - crit, upper = max(prof_res$xseq[!is.na(prof_res$plvalues)]),
                    lower = prof_res$xseq[which(prof_res$plvalues == min(prof_res$plvalues, na.rm = TRUE))], tol = 1e-64)$root)
+  if (class(l) != 'numeric') l <- NA
+  if (class(r) != 'numeric') r <- NA
   c(l = l, r = r)
 }
 
 band_constructor <- function(band_profile_list, conf) {
   df1 <- sapply(band_profile_list, band_point, conf) #for each x
-  data.frame(x = colnames(df1), l = df1[1,], r = df1[2,])
+  data.frame(x = as.numeric(colnames(df1)), l = df1[1,], r = df1[2,])
 }

@@ -191,4 +191,60 @@ t1 <- system.time(band_Epo_ext <- mclapply(seq(0, 300, by = 10),
                                            function(x)
                                              try(CB_point(x = x, fname = 'Epo_ext_cpm', cm = cm_becker))))
 names(band_Epo_ext) <- seq(0, 300, by = 10)
+
+t2 <- system.time(band_Epo_mem <- mclapply(seq(0, 300, by = 10),
+                                           function(x)
+                                             try(CB_point(x = x, fname = 'Epo_mem_cpm', cm = cm_becker)),
+                                           mc.cores = detectCores()))
+names(band_Epo_mem) <- seq(0, 300, by = 10)
+
+t3 <- system.time(band_Epo_int <- mclapply(seq(0, 300, by = 10),
+                                           function(x)
+                                             try(CB_point(x = x, fname = 'Epo_int_cpm', cm = cm_becker)),
+                                           mc.cores = detectCores()))
+names(band_Epo_int) <- seq(0, 300, by = 10)
+
+t4 <- system.time(band_epo_binding <- mclapply(seq(0.5, 3.5, by = 0.1),
+                                           function(x)
+                                             try(CB_point(x = x, fname = 'epo_binding', cm = cm_becker)),
+                                           mc.cores = detectCores()))
+names(band_epo_binding) <- seq(0.5, 3.5, by = 0.1)
+
 b1 <- band_constructor(band_Epo_ext, 0.95)
+b2 <- band_constructor(band_Epo_mem, 0.95)
+b3 <- band_constructor(band_Epo_int, 0.95)
+b4 <- band_constructor(band_epo_binding, 0.95)
+bpl <- list()
+bpl[[1]] <- ggplot(data = b1) + theme(legend.position="none") +
+  geom_path(data = data.frame(x = seq(0, 300, by = 10),
+                              y = sapply(seq(0, 300, by = 10),
+                                         function(x) implicit_fun(x = x, par = cm_becker$fit$par, fname = 'Epo_ext_cpm', cm = cm_becker))),
+            aes(x = x, y = y)) +
+  ggtitle('Epo_ext_cpm') +
+  geom_ribbon(aes(x = x, ymin = l, ymax = r, fill = 'red', alpha = 0.5))
+
+bpl[[2]] <- ggplot(data = b2) + theme(legend.position="none") +
+  geom_path(data = data.frame(x = seq(0, 300, by = 10),
+                              y = sapply(seq(0, 300, by = 10),
+                                         function(x) implicit_fun(x = x, par = cm_becker$fit$par, fname = 'Epo_mem_cpm', cm = cm_becker))),
+            aes(x = x, y = y)) +
+  ggtitle('Epo_mem_cpm') +
+  geom_ribbon(aes(x = x, ymin = l, ymax = r, fill = 'red', alpha = 0.5))
+
+bpl[[3]] <- ggplot(data = b3) + theme(legend.position="none") +
+  geom_path(data = data.frame(x = seq(0, 300, by = 10),
+                              y = sapply(seq(0, 300, by = 10),
+                                         function(x) implicit_fun(x = x, par = cm_becker$fit$par, fname = 'Epo_int_cpm', cm = cm_becker))),
+            aes(x = x, y = y)) +
+  ggtitle('Epo_int_cpm') +
+  geom_ribbon(aes(x = x, ymin = l, ymax = r, fill = 'red', alpha = 0.5))
+bpl[[4]] <- ggplot(data = b4) + theme(legend.position="none") +
+  geom_path(data = data.frame(x = seq(0.5, 3.5, by = 0.1),
+                              y = sapply(seq(0.5, 3.5, by = 0.1),
+                                         function(x) cm_becker$explfunlist[['epo_binding']](x, cm_becker$fit$par))),
+            aes(x = x, y = y)) +
+  ggtitle('Epo_binding') +
+  geom_ribbon(aes(x = x, ymin = l, ymax = r, fill = 'red', alpha = 0.5))
+pdf('confidence bands.pdf')
+  grid.arrange(grobs = bpl, ncol = 2)
+dev.off()
