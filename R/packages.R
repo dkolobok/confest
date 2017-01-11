@@ -8,3 +8,4 @@ if (!require(BB)) {install.packages('BB');require(BB)}
 if (!require(Rsolnp)) {install.packages('Rsolnp');require(Rsolnp)}
 if (!require(XLConnect)) {install.packages('XLConnect');require(XLConnect)}
 if (!require(parallel)) {install.packages('parallel');require(parallel)}
+if (!require(plyr)) {install.packages('plyr');require(plyr)}

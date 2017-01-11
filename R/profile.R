@@ -78,7 +78,7 @@ profile_vis_ind <- function(parname, cm) {
     geom_line(aes(x = x, y = y)) +
     #    geom_line(aes(x = x, y = l), color = 'blue', linetype = "dotted") +
     geom_hline(data = data.frame(y = crit), aes(yintercept = y), color = 'red') +
-    geom_vline(data = data.frame(x = cm_true$fit$par[parname]), aes(xintercept = x), color = 'green') +
+#    geom_vline(data = data.frame(x = cm_true$fit$par[parname]), aes(xintercept = x), color = 'green') +
     geom_point(data = data.frame(x = parfit, y = cm$fit$value), aes(x = x, y = y), col = 'red') +
     xlab(parname) +
     ylab('-2lnL') +

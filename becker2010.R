@@ -8,7 +8,9 @@ source('R/separate_data.R')
 source('R/auxiliary.R')
 source('R/fit.R')
 source('R/implicit.R')
+source('R/bs_pipeline.R')
 source('R/profile.R')
+source('R/confidence_interval.R')
 source('R/confidence_band.R')
 source('R/design.R')
 dyn.load(paste('data/becker2010', .Platform$dynlib.ext, sep = ""))
@@ -184,6 +186,14 @@ for (i in names(profseqlist1)[4]) {
 
 temp2 <- profile_vis(names(cm_becker$fit$par), cm_becker, plotfile = 'profiles_new.pdf')
 
+############################
+### Confidence intervals ###
+############################
+
+CI_list <- lapply(names(cm_becker$fit$par), CI, cm_becker)
+names(CI_list) <- names(cm_becker$fit$par)
+for (i in names(cm_becker$fit$par)) CI_list[[i]] <- CI_list[[i]] * cm_becker$scalevec[i]
+
 ########################
 ### Confidence bands ###
 ########################
@@ -248,3 +258,85 @@ bpl[[4]] <- ggplot(data = b4) + theme(legend.position="none") +
 pdf('confidence bands.pdf')
   grid.arrange(grobs = bpl, ncol = 2)
 dev.off()
+
+
+#####################
+### bootstrapping ###
+#####################
+
+#create bs models
+
+cm_becker$bs_models <- replicate(1000, bootstrap_model(cm_becker), simplify = FALSE)
+
+#fit bs models
+system.time(fit_list <- mclapply(cm_becker$bs_models, function(x) try(fit_bs(x, cm_becker$fit$par, cm_becker)), mc.cores = detectCores()))
+for (i in 1:length(cm_becker$bs_models)) cm_becker$bs_models[[i]]$fit <- list(par = fit_list[[i]][[1]]$par, value = fit_list[[i]][[1]]$value)
+
+#ci
+
+cm_becker$ci_bs <- lapply(names(cm_becker$fit$par), ci_bs, cm_becker)
+names(cm_becker$ci_bs) <- names(cm_becker$fit$par)
+
+#cb
+
+cm_becker$cb_bs <- list()
+cm_becker$cb_bs$Epo_ext_cpm <- cb_bs(fname = 'Epo_ext_cpm', xseq = seq(0, 300, by = 10), cm = cm_becker,
+                                     p = c(0.99, 0.95, 0.9, 0.8, 0.5))
+names(cm_becker$cb_bs$Epo_ext_cpm) <- seq(0, 300, by = 10)
+
+cm_becker$cb_bs$Epo_mem_cpm <- cb_bs(fname = 'Epo_mem_cpm', xseq = seq(0, 300, by = 10), cm = cm_becker,
+                                     p = c(0.99, 0.95, 0.9, 0.8, 0.5))
+names(cm_becker$cb_bs$Epo_mem_cpm) <- seq(0, 300, by = 10)
+
+cm_becker$cb_bs$Epo_int_cpm <- cb_bs(fname = 'Epo_int_cpm', xseq = seq(0, 300, by = 10), cm = cm_becker,
+                                     p = c(0.99, 0.95, 0.9, 0.8, 0.5))
+names(cm_becker$cb_bs$Epo_int_cpm) <- seq(0, 300, by = 10)
+
+cm_becker$cb_bs$epo_binding <- cb_bs(fname = 'epo_binding', xseq = seq(0.5, 3.5, by = 0.1), cm = cm_becker,
+                                     p = c(0.99, 0.95, 0.9, 0.8, 0.5))
+names(cm_becker$cb_bs$epo_binding) <- seq(0.5, 3.5, by = 0.1)
+
+bbs1 <- sapply(cm_becker$cb_bs$Epo_ext_cpm, function(x) x['0.95',])
+bbs1 <- data.frame(x = seq(0, 300, by = 10), l = as.numeric(bbs1['l', ]), r = as.numeric(bbs1['r', ]))
+bbs2 <- sapply(cm_becker$cb_bs$Epo_mem_cpm, function(x) x['0.95',])
+bbs2 <- data.frame(x = seq(0, 300, by = 10), l = as.numeric(bbs2['l', ]), r = as.numeric(bbs2['r', ]))
+bbs3 <- sapply(cm_becker$cb_bs$Epo_int_cpm, function(x) x['0.95',])
+bbs3 <- data.frame(x = seq(0, 300, by = 10), l = as.numeric(bbs3['l', ]), r = as.numeric(bbs3['r', ]))
+bbs4 <- sapply(cm_becker$cb_bs$epo_binding, function(x) x['0.95',])
+bbs4 <- data.frame(x = seq(0.5, 3.5, by = 0.1), l = as.numeric(bbs4['l', ]), r = as.numeric(bbs4['r', ]))
+
+bbspl <- list()
+bbspl[[1]] <- ggplot(data = bbs1) + theme(legend.position="none") +
+  geom_path(data = data.frame(x = seq(0, 300, by = 10),
+                              y = sapply(seq(0, 300, by = 10),
+                                         function(x) implicit_fun(x = x, par = cm_becker$fit$par, fname = 'Epo_ext_cpm', cm = cm_becker))),
+            aes(x = x, y = y)) +
+  ggtitle('Epo_ext_cpm') +
+  geom_ribbon(aes(x = x, ymin = l, ymax = r), fill = 'blue', alpha = 0.5)
+
+bbspl[[2]] <- ggplot(data = bbs2) + theme(legend.position="none") +
+  geom_path(data = data.frame(x = seq(0, 300, by = 10),
+                              y = sapply(seq(0, 300, by = 10),
+                                         function(x) implicit_fun(x = x, par = cm_becker$fit$par, fname = 'Epo_mem_cpm', cm = cm_becker))),
+            aes(x = x, y = y)) +
+  ggtitle('Epo_mem_cpm') +
+  geom_ribbon(aes(x = x, ymin = l, ymax = r), fill = 'blue', alpha = 0.5)
+
+bbspl[[3]] <- ggplot(data = bbs3) + theme(legend.position="none") +
+  geom_path(data = data.frame(x = seq(0, 300, by = 10),
+                              y = sapply(seq(0, 300, by = 10),
+                                         function(x) implicit_fun(x = x, par = cm_becker$fit$par, fname = 'Epo_int_cpm', cm = cm_becker))),
+            aes(x = x, y = y)) +
+  ggtitle('Epo_int_cpm') +
+  geom_ribbon(aes(x = x, ymin = l, ymax = r), fill = 'blue', alpha = 0.5)
+bbspl[[4]] <- ggplot(data = bbs4) + theme(legend.position="none") +
+  geom_path(data = data.frame(x = seq(0.5, 3.5, by = 0.1),
+                              y = sapply(seq(0.5, 3.5, by = 0.1),
+                                         function(x) cm_becker$explfunlist[['epo_binding']](x, cm_becker$fit$par))),
+            aes(x = x, y = y)) +
+  ggtitle('Epo_binding') +
+  geom_ribbon(aes(x = x, ymin = l, ymax = r), fill = 'blue', alpha = 0.5)
+pdf('confidence bands_bs.pdf')
+grid.arrange(grobs = bbspl, ncol = 2)
+dev.off()
+
